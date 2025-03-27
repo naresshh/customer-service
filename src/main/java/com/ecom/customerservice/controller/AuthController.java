@@ -1,5 +1,7 @@
 package com.ecom.customerservice.controller;
 
+import com.ecom.customerservice.modal.User;
+import com.ecom.customerservice.repository.UserRepository;
 import com.ecom.customerservice.security.JwtUtils;
 import com.ecom.customerservice.security.LoginRequest;
 import com.ecom.customerservice.security.LoginResponse;
@@ -20,6 +22,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
+@CrossOrigin(origins = "http://localhost:3000")
 public class AuthController {
 
     private final JwtUtils jwtUtils;
@@ -29,6 +32,9 @@ public class AuthController {
     }
     @Autowired
     private AuthenticationManager authenticationManager;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @PostMapping("/signin")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
@@ -54,7 +60,9 @@ public class AuthController {
                 .map(item -> item.getAuthority())
                 .collect(Collectors.toList());
 
-        LoginResponse response = new LoginResponse(userDetails.getUsername(), roles, jwtToken);
+     User user = userRepository.findByUsername(userDetails.getUsername()).get();
+
+        LoginResponse response = new LoginResponse(userDetails.getUsername(), roles, jwtToken,user.getId());
 
         return ResponseEntity.ok(response);
     }

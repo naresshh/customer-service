@@ -18,6 +18,7 @@ import java.util.Set;
 
 @RestController
 @RequestMapping("/api/users/")
+@CrossOrigin(origins = "http://localhost:3000")
 @RequiredArgsConstructor
 public class UserController {
 
@@ -38,26 +39,35 @@ public class UserController {
         user.setUsername(userRequestDTO.getUsername());
         user.setPassword(passwordEncoder.encode(userRequestDTO.getPassword()));
         user.setEmail(userRequestDTO.getEmail());
+        user.setPhoneNumber(userRequestDTO.getPhone());
         user.setEnabled(userRequestDTO.isEnabled());
 
         Set<UserRole> userRoles = new HashSet<>();
 
-        for (String roleStr : userRequestDTO.getRoles()) {
-            Role roleEnum;
-            try {
-                roleEnum = Role.valueOf(roleStr);
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest().body("Invalid role: " + roleStr);
+        if (userRequestDTO.getRoles() == null || userRequestDTO.getRoles().isEmpty()) {
+            UserRole defaultUserRole = new UserRole();
+            defaultUserRole.setRole(Role.ROLE_USER);  // Assign USER role
+            user.setEnabled(true);
+            defaultUserRole.setUser(user);
+
+            userRoles.add(defaultUserRole);
+        } else {
+            for (String roleStr : userRequestDTO.getRoles()) {
+                Role roleEnum;
+                try {
+                    roleEnum = Role.valueOf(roleStr);
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest().body("Invalid role: " + roleStr);
+                }
+
+                // Create UserRole instance and set fields manually
+                UserRole userRole = new UserRole();
+                userRole.setRole(roleEnum);
+                userRole.setUser(user); // Associate this role with the user
+
+                userRoles.add(userRole);
             }
-
-            // Create UserRole instance and set fields manually
-            UserRole userRole = new UserRole();
-            userRole.setRole(roleEnum);
-            userRole.setUser(user); // Associate this role with the user
-
-            userRoles.add(userRole);
         }
-
         user.setRoles(userRoles);
 
         User savedUser = userRepository.save(user);

@@ -14,10 +14,13 @@ public class LoginResponse {
     private String jwtToken;
     private String username;
     private List<String> roles;
-    public LoginResponse(String username, List<String> roles, String jwtToken) {
+    private Long customerId;
+
+    public LoginResponse(String username, List<String> roles, String jwtToken,Long customerId) {
         this.username = username;
         this.roles = roles;
         this.jwtToken = jwtToken;
+        this.customerId=customerId;
     }
 
     public String getJwtToken() {
@@ -42,5 +45,13 @@ public class LoginResponse {
 
     public void setRoles(List<String> roles) {
         this.roles = roles;
+    }
+
+    public Long getCustomerId() {
+        return customerId;
+    }
+
+    public void setCustomerId(Long customerId) {
+        this.customerId = customerId;
     }
 }

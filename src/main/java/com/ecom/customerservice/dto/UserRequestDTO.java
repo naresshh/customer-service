@@ -9,6 +9,7 @@ public class UserRequestDTO {
     private String username;
     private String password;
     private String email;
+    private String phone;
     private boolean enabled;
     private Set<String> roles; // List of role names: ROLE_USER, ROLE_ADMIN etc.
 
@@ -42,6 +43,15 @@ public class UserRequestDTO {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 
     public Set<String> getRoles() {

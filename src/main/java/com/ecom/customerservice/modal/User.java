@@ -28,6 +28,8 @@ public class User {
     @Column(nullable = false)
     private boolean enabled;
 
+    private String phoneNumber;
+
     @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL, mappedBy = "user", orphanRemoval = true)
     private Set<UserRole> roles = new HashSet<>();
 
@@ -75,6 +77,14 @@ public class User {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
     }
 
     public Set<UserRole> getRoles() {
