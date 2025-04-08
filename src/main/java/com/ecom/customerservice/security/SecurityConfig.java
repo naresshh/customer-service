@@ -51,6 +51,7 @@ public class SecurityConfig {
                 authorizeHttpRequests(authorizeRequests ->
                 authorizeRequests.requestMatchers(new AntPathRequestMatcher("/h2-console/**")).permitAll()
                         .requestMatchers(new AntPathRequestMatcher("/signin")).permitAll()
+                        .requestMatchers(new AntPathRequestMatcher("/refresh-token")).permitAll()
                         .requestMatchers(new AntPathRequestMatcher("/api/users/create")).permitAll()
                         .anyRequest().authenticated());
         http.sessionManagement(

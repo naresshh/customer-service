@@ -1,5 +1,7 @@
 package com.ecom.customerservice.security;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,21 +34,58 @@ public class AuthTokenFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         log.debug("AuthTokenFilter called for URI: {}", request.getRequestURI());
         try {
+            if (request.getRequestURI().equals("/signin") || request.getRequestURI().equals("/refresh-token")) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             String jwt = parseJwt(request);
-            if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
-                String username = jwtUtils.getUserNameFromJwtToken(jwt);
 
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            if (jwt == null || jwt.isEmpty()) {
+                log.warn("No JWT token found in request header");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"No JWT token provided\"}");
+                return;
+            }
 
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(userDetails,
-                                null,
-                                userDetails.getAuthorities());
-                log.debug("Roles from JWT: {}", userDetails.getAuthorities());
+            Claims claims = null;
+            try {
+                claims = Jwts.parserBuilder()
+                        .setSigningKey(jwtUtils.key())
+                        .build()
+                        .parseClaimsJws(jwt)
+                        .getBody();
+            } catch (Exception e) {
+                // Handle invalid or expired JWT
+                log.warn("JWT token is invalid or expired: {}", e.getMessage());
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"JWT expired or invalid\"}");
+                return;
+            }
 
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+            String tokenType = claims.get("tokenType", String.class);
+            if ("access".equals(tokenType)) {
+                if (jwt != null) {
+                    if (jwtUtils.validateJwtToken(jwt)) {
+                        String username = jwtUtils.getUserNameFromJwtToken(jwt);
+                        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    } else {
+                        // 🔴 Token is invalid or expired — respond with 401
+                        log.warn("JWT Token is invalid or expired");
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\": \"JWT expired or invalid\"}");
+                        return; // 🔥 This is important — don't continue the chain!
+                    }
+                }
             }
         } catch (Exception e) {
             log.error("Cannot set user authentication", e);

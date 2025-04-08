@@ -11,6 +11,7 @@ public class CustomerDTO {
     private Long id;
     private String name;
     private String email;
+    private boolean isAdmin;
 
     public CustomerDTO() {
     }
@@ -45,5 +46,13 @@ public class CustomerDTO {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public boolean isAdmin() {
+        return isAdmin;
+    }
+
+    public void setAdmin(boolean admin) {
+        isAdmin = admin;
     }
 }

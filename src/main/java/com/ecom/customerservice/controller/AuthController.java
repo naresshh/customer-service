@@ -1,5 +1,6 @@
 package com.ecom.customerservice.controller;
 
+import com.ecom.customerservice.dto.CustomerDTO;
 import com.ecom.customerservice.modal.User;
 import com.ecom.customerservice.repository.UserRepository;
 import com.ecom.customerservice.security.JwtUtils;
@@ -55,6 +56,7 @@ public class AuthController {
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
 
         String jwtToken = jwtUtils.generateTokenFromUsername(userDetails);
+        String refreshToken = jwtUtils.generateRefreshTokenFromUsername(userDetails);
 
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(item -> item.getAuthority())
@@ -62,26 +64,58 @@ public class AuthController {
 
      User user = userRepository.findByUsername(userDetails.getUsername()).get();
 
-        LoginResponse response = new LoginResponse(userDetails.getUsername(), roles, jwtToken,user.getId());
+        LoginResponse response = new LoginResponse(userDetails.getUsername(), roles,jwtToken,user.getId(),refreshToken);
 
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/validate-admin")
-    public ResponseEntity<Boolean> validateAdmin(@RequestHeader("Authorization") String token) {
-        // Extract JWT token
-        String jwtToken = token.replace("Bearer ", "");
+    @PostMapping("/refresh-token")
+    public ResponseEntity<?> refreshAccessToken(@RequestBody Map<String, String> request) {
+        String refreshToken = request.get("refreshToken");
 
-        // Get authentication from Security Context
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        // Check if user has ROLE_ADMIN
-        if (authentication == null || authentication.getAuthorities().stream()
-                .noneMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"))) {
-            return ResponseEntity.ok(false); // Not an admin
+        if (refreshToken == null || !jwtUtils.validateRefreshToken(refreshToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid refresh token");
         }
 
-        return ResponseEntity.ok(true); // Admin user
+        String username = jwtUtils.getUserNameFromJwtToken(refreshToken);
+        UserDetails userDetails = (UserDetails) userRepository.findByUsername(username)
+                .map(user -> org.springframework.security.core.userdetails.User.builder()
+                        .username(user.getUsername())
+                        .password(user.getPassword())
+                        .authorities(user.getRoles().stream().map(role -> "ROLE_" + role.getRole()).toArray(String[]::new))
+                        .build())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String newAccessToken = jwtUtils.generateTokenFromUsername(userDetails);
+
+        Map<String, String> tokens = new HashMap<>();
+        tokens.put("accessToken", newAccessToken);
+        tokens.put("refreshToken", refreshToken); // Return the same refresh token
+
+        return ResponseEntity.ok(tokens);
     }
+
+
+    @GetMapping("/validate-admin")
+    public ResponseEntity<CustomerDTO> validateAdmin(@RequestHeader("Authorization") String token) {
+        String jwtToken = token.replace("Bearer ", "");
+
+        String username = jwtUtils.getUserNameFromJwtToken(jwtToken);
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+
+        CustomerDTO customerDTO = new CustomerDTO();
+        customerDTO.setId(user.getId());
+        customerDTO.setName(user.getUsername());
+        customerDTO.setEmail(user.getEmail());
+        customerDTO.setAdmin(isAdmin);
+
+        return ResponseEntity.ok(customerDTO);
+    }
+
 
 }
